@@ -1,0 +1,17 @@
+Input: A1, A2, switch point tau, target precision
+tau and sigma are target values
+
+E.g. sigma = 10e-8, tau = 10e-3
+
+Run A1 until tau
+-> we need to stop A1 once we found tau, so it needs to part of the while condition
+-> pass on switch condition in algorithm call, e.g. if switch_cond = True or break condition
+
+Run A2 from tau until target precision
+
+Return x_opt, f_opt
+
+Start an algorithm: a1(f)
+Stop: only if while loop breaks or budget is empty
+
+Make all parameters that need to be adapted part of the algorithm object
