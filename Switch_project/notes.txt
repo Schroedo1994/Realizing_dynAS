@@ -15,3 +15,51 @@ Start an algorithm: a1(f)
 Stop: only if while loop breaks or budget is empty
 
 Make all parameters that need to be adapted part of the algorithm object
+
+more generic:
+
+1 generic algorithm class -> abstract class
+initialize
+running
+get data from the algorithm
+pass on data to the algorithm (warm-start)
+
+Each algorithm is an instantiation of that abstract class
+
+switch: class that stitches algorithms together
+generic stopping criteria
+passes as boolean function 
+stopping criteria, can be initialized from this class
+
+IOH_function object
+
+class Generic_algorithm:
+
+    def __init__(self, func):
+
+class MLSL(Generic_algorithm):
+
+class Switch:
+
+    def __init__(self, budget, dict):
+    
+    def __call__(self, func):
+    
+    for k, v in dictionary:
+    
+        a = value(func) // take from dictionary
+        a.set_data(data)
+
+        def stopping_criteria():
+            return f.best_so_far_precision <= key or f.evaluations > budget
+            # take tau from dictionary as well
+
+        a.set_stopping_criteria(stopping_criteria)
+        a.run()
+        data = a.get_data()
+
+input:
+dictionary of algorithms (a1, a2), switch points and target precisions
+
+parameters:
+# dictionary? instead of self. (budget...)) parameters data (check if there's certain data or not)
