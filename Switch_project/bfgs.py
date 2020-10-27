@@ -15,19 +15,19 @@ from scipy.optimize.linesearch import (line_search_wolfe1, line_search_wolfe2,
                          line_search_wolfe2 as line_search,
                          LineSearchWarning)
 
-class BFGS:
+from algorithm import Algorithm
+
+class BFGS(Algorithm):
 
     """ Optimizer class for BFGS algorithm.
 
     Parameters:
     -----------------
-    budget : int
-        Budget for function evaluations.
+    func : object, callable
+        The function to be optimized.
 
     Attributes:
     -----------------
-    d : int
-        The number of dimensions, problem variables.
 
     gtol : float
         Value for gradient tolerance.
@@ -47,28 +47,33 @@ class BFGS:
         possibly adjusted to fit into the bounds. For ``method='3-point'``
         the sign of `h` is ignored. If None (default) then step is selected
         automatically.
+        
+    x0 : array-type
+        The initial point for the algorithm routine.
+        
+    Parent:
+    ------------
 
     """
+    __doc__ += Algorithm.__doc__
 
-    def __init__(self, budget, order):
-        self.budget = budget
-        self.d = 1
+    def __init__(self, func):
+        Algorithm.__init__(self, func)
         self.gtol = 1e-10
         self.norm = np.inf
         self.eps = math.sqrt(np.finfo(float).eps)
         self.return_all = False
         self.jac = None
         self.finite_diff_rel_step = None
-        self.order = order
         self.x0 = None
+        self.Hk = np.eye(self.dim, dtype=int)   # B0 = identity
 
-    def __call__(self, func, tau, target):
+    def run(self):
         """ Runs the BFGS algorithm.
 
         Parameters:
         --------------
-        func : object-like
-            The function to be optimized.
+        None
 
         Returns:
         --------------
@@ -80,26 +85,18 @@ class BFGS:
 
         """
 
-        # Initialization
-        self.d = func.number_of_variables
-        eval_budget = self.budget * self.d
-        x_opt = None
-        f_opt = np.inf
-        retall = self.return_all
-        I = np.eye(self.d, dtype=int)    # identity matrix
-        Hk = np.eye(self.d, dtype=int)   # B0 = identity
+        # Initialization 
+        I = np.eye(self.dim, dtype=int)    # identity matrix
         k = 0
 
         # Initialize first point x0 at random
         if self.x0 is None:
-            self.x0 = np.zeros(self.d)
-            for i in range(0, self.d):
+            self.x0 = np.zeros(self.dim)
+            for i in range(0, self.dim):
                 self.x0[i] = rd.uniform(-5, 5)
-        
-        print(f' BFGS started, x0 = {self.x0}')
 
         # Prepare scalar function object and derive function and gradient function
-        sf = _prepare_scalar_function(func, self.x0, self.jac, epsilon=self.eps,
+        sf = _prepare_scalar_function(self.func, self.x0, self.jac, epsilon=self.eps,
                               finite_diff_rel_step=self.finite_diff_rel_step)
         f = sf.fun    # function object to evaluate function
         gradient = sf.grad    # function object to evaluate gradient
@@ -112,27 +109,27 @@ class BFGS:
 
         xk = self.x0
 
-        if retall:
+        if self.return_all:
             allvecs = [self.x0]
 
         # Calculate initial gradient norm
         gnorm = vecnorm(gfk, ord=self.norm)
         
         # Algorithm loop
-        while (func.evaluations < eval_budget) and not func.final_target_hit:
-            pk = -np.dot(Hk, gfk)    # derive direction pk from HK and gradient at x0 (gfk)
+        while not self.stop():
+            pk = -np.dot(self.Hk, gfk)    # derive direction pk from HK and gradient at x0 (gfk)
             # Derive alpha_k with Wolfe conditions
             try:
                 alpha_k, fc, gc, old_fval, old_old_fval, gfkp1 = \
                      _line_search_wolfe12(f, gradient, xk, pk, gfk,
                                           old_fval, old_old_fval, amin=1e-100, amax=1e100)
             except _LineSearchError:
-                print('break because of line search error')
+                #print('break because of line search error')
                 break
 
             # calculate xk+1 with alpha_k and pk
             xkp1 = xk + alpha_k * pk
-            if retall:
+            if self.return_all:
                 allvecs.append(xkp1)
             sk = xkp1 - xk    # step sk is difference between xk+1 and xk
             xk = xkp1    # make xk+1 new xk for next iteration
@@ -144,13 +141,13 @@ class BFGS:
             k += 1
 
             if not np.isfinite(old_fval):
-                print('break because of np.isfinite')
+                #print('break because of np.isfinite')
                 break
 
             # Check if gnorm is already smaller than tolerance
             gnorm = vecnorm(gfk, ord=self.norm)
             if (gnorm <= self.gtol):
-                print('break because of gnorm')
+                #print('break because of gnorm')
                 break
 
             # Calculate rhok factor for Hessian approximation matrix update
@@ -164,30 +161,23 @@ class BFGS:
             # Hessian approximation matrix Hk (Bk in papers) update
             A1 = I - sk[:, np.newaxis] * yk[np.newaxis, :] * rhok
             A2 = I - yk[:, np.newaxis] * sk[np.newaxis, :] * rhok
-            Hk = np.dot(A1, np.dot(Hk, A2)) + (rhok * sk[:, np.newaxis] *
+            self.Hk = np.dot(A1, np.dot(self.Hk, A2)) + (rhok * sk[:, np.newaxis] *
                                                      sk[np.newaxis, :])
-            
-            print(f' BFGS prec: {func.best_so_far_precision} evals: {func.evaluations}')
-            
-            if self.order == 'a1' and (func.best_so_far_precision <= tau):
-                break
-            if self.order == 'a2' and (func.best_so_far_precision <= target):
-                break
 
         # Store found fitness value in fval for result
         fval = old_fval
 
         # Create OptimizeResult object based on found point and value
-        result = OptimizeResult(fun=fval, jac=gfk, hess_inv=Hk, nfev=sf.nfev,
+        result = OptimizeResult(fun=fval, jac=gfk, hess_inv=self.Hk, nfev=sf.nfev,
                         njev=sf.ngev, x=xk,
                         nit=k)
 
         # Store in x_opt and f_opt
-        x_opt = result.x
-        f_opt = result.fun
-        print(f' BFGS done, x: {x_opt} f: {f_opt}')
+        self.x_opt = result.x
+        self.f_opt = result.fun
+        #print(f' BFGS done, x: {x_opt} f: {f_opt}')
 
-        if retall:
+        if self.return_all:
             result['allvecs'] = allvecs
 
-        return x_opt, f_opt
+        return self.x_opt, self.f_opt
