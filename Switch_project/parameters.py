@@ -16,6 +16,8 @@ class Parameters:
     def __init__(self):
         self.budget = 0
         self.x_opt = None
+        self.pop = None
+        self.f = None
 
 def init_params(budget):
     """ Initialize parameter settings for first algorithm.
