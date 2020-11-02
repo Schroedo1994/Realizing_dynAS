@@ -35,6 +35,7 @@ class Algorithm:
         self.x_opt = None
         self.f_opt = np.inf
         self.popsize = 1
+        self.f = None
 
     def stop(self):
         return False
@@ -43,6 +44,11 @@ class Algorithm:
         parameters = Parameters()
         parameters.budget = self.budget
         parameters.x_opt = self.x_opt
+        
+        if hasattr(self, 'pop'):
+            parameters.pop = self.pop
+
+        parameters.f = self.f
 
         return parameters
 
@@ -51,6 +57,18 @@ class Algorithm:
 
         if hasattr(self, 'x0'):
             self.x0 = parameters.x_opt
+
+        if hasattr(self, 'pop'):
+            if parameters.pop is None:
+                self.pop = []
+            else:
+                self.pop = parameters.pop
+
+
+        if parameters.f is None:
+            self.f = []
+        else:
+            self.f = parameters.f
 
     def set_stopping_criteria(self, stopping_criteria):
         self.stop = stopping_criteria

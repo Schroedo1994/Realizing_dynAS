@@ -85,6 +85,8 @@ class BFGS(Algorithm):
 
         """
 
+        print(f' BFGS started')
+
         # Initialization 
         I = np.eye(self.dim, dtype=int)    # identity matrix
         k = 0
@@ -113,16 +115,24 @@ class BFGS(Algorithm):
             allvecs = [self.x0]
 
         # Calculate initial gradient norm
-        gnorm = vecnorm(gfk, ord=self.norm)
+        gnorm = vecnorm(gfk, ord = self.norm)
         
         # Algorithm loop
         while not self.stop():
             pk = -np.dot(self.Hk, gfk)    # derive direction pk from HK and gradient at x0 (gfk)
-            # Derive alpha_k with Wolfe conditions
+            """Derive alpha_k with Wolfe conditions.
+            
+            alpha_k : step size
+            fc : count of function evaluations, gc: count of gradient evaluations
+            old_fval : function value of new point xkp1 (xk + ak * pk)
+            old_old_fval: function value of start point xk
+            gfkp1 : gradient at new point xkp1
+            """
             try:
                 alpha_k, fc, gc, old_fval, old_old_fval, gfkp1 = \
                      _line_search_wolfe12(f, gradient, xk, pk, gfk,
                                           old_fval, old_old_fval, amin=1e-100, amax=1e100)
+                
             except _LineSearchError:
                 #print('break because of line search error')
                 break
@@ -175,9 +185,10 @@ class BFGS(Algorithm):
         # Store in x_opt and f_opt
         self.x_opt = result.x
         self.f_opt = result.fun
-        #print(f' BFGS done, x: {x_opt} f: {f_opt}')
 
         if self.return_all:
             result['allvecs'] = allvecs
+
+        print(f' BFGS complete')
 
         return self.x_opt, self.f_opt

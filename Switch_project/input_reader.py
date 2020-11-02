@@ -3,6 +3,7 @@
 # Import algorithm classes
 from bfgs import BFGS
 from mlsl import MLSL
+from ea import EA
 
 def create_dict():
     """ Manually creates dictionary.
@@ -14,8 +15,8 @@ def create_dict():
 
     """
     data = {
-      0.63095: MLSL,
-      1e-8: BFGS
+      20: EA,
+      1e-8: MLSL
     }
 
     return data

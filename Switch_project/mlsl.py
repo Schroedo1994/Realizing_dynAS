@@ -63,7 +63,7 @@ class MLSL(Algorithm):
         self.xr = None
         self.fr = None
         self.rk = 0
-        self.lebesgue = 0
+        self.lebesgue = math.sqrt(100 * self.dim)
 
     def calc_rk(self):
         """ Calculates the critical distance depending on current iteration and population.
@@ -101,16 +101,15 @@ class MLSL(Algorithm):
 
         """
 
+        print(f' MLSL started')
+
         # Set parameters depending on function characteristics
         local_budget = 0.1 * (self.budget - self.func.evaluations)
         # factor 0.1 according to original BBOB submission
         bounds = Bounds(self.func.lowerbound, self.func.upperbound)
         self.popsize = 50 * self.dim    # 50 points according to original BBOB submission
-        self.lebesgue = math.sqrt(100 * self.dim)
 
         # Initialize reduced sample and (re)set iteration counter to 1
-        self.pop = []
-        f = []
         x_star = []
         f_star = []
         self.k = 1
@@ -124,11 +123,12 @@ class MLSL(Algorithm):
                 for j in range(0, self.dim):
                     new_point[j] = generator.uniform(low=-5, high=5)
                 self.pop.append(new_point)
-                f.append(self.func(new_point))
+                self.f.append(self.func(new_point))
+
 
             # Extract reduced sample xr
             self.xr = np.zeros((math.ceil(self.gamma * self.k * self.popsize), self.dim))
-            m = np.hstack((np.asarray(self.pop), np.expand_dims(np.asarray(f), axis=1)))
+            m = np.hstack((np.asarray(self.pop), np.expand_dims(np.asarray(self.f), axis=1)))
             sorted_m = m[np.argsort(m[:, self.dim])]
             self.xr = sorted_m[0:len(self.xr), 0:self.dim]
             self.fr = sorted_m[0:len(self.xr), self.dim]
@@ -153,6 +153,7 @@ class MLSL(Algorithm):
                                         options={'ftol': 1e-8, 'maxfev': local_budget})
                     x_star.append(solution.x)
                     f_star.append(solution.fun)
+
                     local_budget = local_budget - solution.nfev
                     if local_budget < 0:
                         local_budget = 0
@@ -164,5 +165,7 @@ class MLSL(Algorithm):
         sorted_n = n[np.argsort(n[:, self.dim])]
         self.x_opt = sorted_n[0, 0:self.dim]
         self.f_opt = sorted_n[0, self.dim]
+        
+        print(f' MLSL complete')
 
         return self.x_opt, self.f_opt
