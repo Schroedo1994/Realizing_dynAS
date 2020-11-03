@@ -35,7 +35,11 @@ class Algorithm:
         self.x_opt = None
         self.f_opt = np.inf
         self.popsize = 1
-        self.f = None
+        self.f_hist = None
+        self.x_hist =
+
+        self.x_pop = 
+        self.f_pop = 
 
     def stop(self):
         return False

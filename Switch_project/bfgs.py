@@ -68,6 +68,17 @@ class BFGS(Algorithm):
         self.x0 = None
         self.Hk = np.eye(self.dim, dtype=int)   # B0 = identity
 
+        
+    def set_parameters(self, parameters):
+        #warmstart
+        if 'history' in parameters.internal_dict:
+            
+        if 'vel' in 
+            
+    
+    def get_parameters(self, parameters):
+        parameters.set('jacobian', self.jac)
+    
     def run(self):
         """ Runs the BFGS algorithm.
 

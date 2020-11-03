@@ -18,6 +18,20 @@ class Parameters:
         self.x_opt = None
         self.pop = None
         self.f = None
+        self.internal_dict = {}
+        
+#     def set_history
+#         self.info_available += 'hist'
+#         #x0, full history x, corresponding f
+        
+    hist_dict = {}
+    
+    def set_info(self, name, dict_):
+        self.internal_dict[name] = dict_
+        
+        if 'vel' in self.internal_dict:
+            
+    
 
 def init_params(budget):
     """ Initialize parameter settings for first algorithm.
