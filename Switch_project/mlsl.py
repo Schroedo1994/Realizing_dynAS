@@ -48,6 +48,18 @@ class MLSL(Algorithm):
     lebesgue : float
         The Lebesgue measure of distance.
         
+    Methods:
+    --------------
+    
+    set_params(parameters):
+        Sets algorithm parameters for warm-start.
+        
+    get_params(parameters):
+        Transfers internal parameters to parameters dictionary.
+        
+    run():
+        Runs the MLSL algorithm.
+        
     Parent:
     ------------
 
@@ -57,6 +69,7 @@ class MLSL(Algorithm):
     def __init__(self, func):
         Algorithm.__init__(self, func)
         self.pop = None
+        self.f = []
         self.gamma = 0.1
         self.k = 1
         self.zeta = 2.0
@@ -64,6 +77,26 @@ class MLSL(Algorithm):
         self.fr = None
         self.rk = 0
         self.lebesgue = math.sqrt(100 * self.dim)
+        
+
+    def set_params(self, parameters):
+        self.budget = parameters.budget
+        
+        """Warm start routine"""
+        
+        if 'pop' in parameters.internal_dict:
+            self.pop = parameters.internal_dict['pop']
+        else:
+            self.pop = []
+
+
+    def get_params(self, parameters):
+        parameters.internal_dict['rk'] = self.rk
+        parameters.internal_dict['iteration'] = self.k
+        parameters.internal_dict['x_opt'] = self.func.best_so_far_variables
+
+        return parameters
+
 
     def calc_rk(self):
         """ Calculates the critical distance depending on current iteration and population.
@@ -93,19 +126,18 @@ class MLSL(Algorithm):
 
         Returns:
         ------------
-        x_opt : array-type
-            The best found solution.
+        best_so_far_variables : array
+                The best found solution.
 
-        f_opt: float
-            The fitness value for the best found solution.
+        best_so_far_fvaluet: float
+               The fitness value for the best found solution.
 
         """
 
         print(f' MLSL started')
 
         # Set parameters depending on function characteristics
-        local_budget = 0.1 * (self.budget - self.func.evaluations)
-        # factor 0.1 according to original BBOB submission
+        local_budget = 0.1 * (self.budget - self.func.evaluations)        
         bounds = Bounds(self.func.lowerbound, self.func.upperbound)
         self.popsize = 50 * self.dim    # 50 points according to original BBOB submission
 
@@ -160,12 +192,6 @@ class MLSL(Algorithm):
 
             self.k = self.k+1
 
-        # Get best point from x_star
-        n = np.hstack((np.asarray(x_star), np.expand_dims(np.asarray(f_star), axis=1)))
-        sorted_n = n[np.argsort(n[:, self.dim])]
-        self.x_opt = sorted_n[0, 0:self.dim]
-        self.f_opt = sorted_n[0, self.dim]
-        
         print(f' MLSL complete')
 
-        return self.x_opt, self.f_opt
+        return self.func.best_so_far_variables, self.func.best_so_far_fvalue

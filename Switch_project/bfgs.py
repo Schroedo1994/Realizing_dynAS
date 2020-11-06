@@ -51,6 +51,24 @@ class BFGS(Algorithm):
     x0 : array-type
         The initial point for the algorithm routine.
         
+    Hk : array-type
+        Hessian approximation matrix at iteration k
+        
+    alpha_k : float
+        Step size after iteration k
+        
+    Methods:
+    --------------
+    
+    set_params(parameters):
+        Sets algorithm parameters for warm-start.
+        
+    get_params(parameters):
+        Transfers internal parameters to parameters dictionary.
+        
+    run():
+        Runs the BFGS algorithm.
+        
     Parent:
     ------------
 
@@ -67,6 +85,36 @@ class BFGS(Algorithm):
         self.finite_diff_rel_step = None
         self.x0 = None
         self.Hk = np.eye(self.dim, dtype=int)   # B0 = identity
+        self.alpha_k = 0
+
+    def set_params(self, parameters):
+        self.budget = parameters.budget
+
+        """Warm start routine"""
+
+        # Initialize first point x0
+        
+        if 'x_opt' in parameters.internal_dict:
+            self.x0 = parameters.internal_dict['x_opt']
+        
+        # Initialize stepsize alpha_k
+        if 'stepsize' in parameters.internal_dict:
+            self.alpha_k = parameters.internal_dict['stepsize']
+
+        # Initialize Hk
+  
+        # if 'C' in parameters.internal_dict:
+        #     do something nice
+        #     finally set Hk to something
+
+
+    def get_params(self, parameters):
+        parameters.internal_dict['Hk'] = self.Hk
+        parameters.internal_dict['stepsize'] = self.alpha_k
+        parameters.internal_dict['x_opt'] = self.func.best_so_far_variables
+
+        return parameters
+
 
     def run(self):
         """ Runs the BFGS algorithm.
@@ -77,10 +125,10 @@ class BFGS(Algorithm):
 
         Returns:
         --------------
-        x_opt : array
+        best_so_far_variables : array
                 The best found solution.
 
-        f_opt: float
+        best_so_far_fvaluet: float
                The fitness value for the best found solution.
 
         """
@@ -129,7 +177,7 @@ class BFGS(Algorithm):
             gfkp1 : gradient at new point xkp1
             """
             try:
-                alpha_k, fc, gc, old_fval, old_old_fval, gfkp1 = \
+                self.alpha_k, fc, gc, old_fval, old_old_fval, gfkp1 = \
                      _line_search_wolfe12(f, gradient, xk, pk, gfk,
                                           old_fval, old_old_fval, amin=1e-100, amax=1e100)
                 
@@ -138,7 +186,7 @@ class BFGS(Algorithm):
                 break
 
             # calculate xk+1 with alpha_k and pk
-            xkp1 = xk + alpha_k * pk
+            xkp1 = xk + self.alpha_k * pk
             if self.return_all:
                 allvecs.append(xkp1)
             sk = xkp1 - xk    # step sk is difference between xk+1 and xk
@@ -182,13 +230,9 @@ class BFGS(Algorithm):
                         njev=sf.ngev, x=xk,
                         nit=k)
 
-        # Store in x_opt and f_opt
-        self.x_opt = result.x
-        self.f_opt = result.fun
-
         if self.return_all:
             result['allvecs'] = allvecs
 
         print(f' BFGS complete')
 
-        return self.x_opt, self.f_opt
+        return self.func.best_so_far_variables, self.func.best_so_far_fvalue
