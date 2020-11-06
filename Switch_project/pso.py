@@ -99,7 +99,23 @@ class PSO(Algorithm):
 
     Attributes:
     ---------------
-    None
+    g_best : array-type
+        Best solution found so far.
+        
+    g_best_f : float
+        Fitness value at best solution so far.
+    
+    Methods:
+    --------------
+    
+    set_params(parameters):
+        Sets algorithm parameters for warm-start.
+        
+    get_params(parameters):
+        Transfers internal parameters to parameters dictionary.
+        
+    run():
+        Runs the EA algorithm.
 
     Parent:
     ------------
@@ -108,10 +124,40 @@ class PSO(Algorithm):
     __doc__ += Algorithm.__doc__
 
     def __init__(self, func):
-        Algorithm.__init__(self, func)
+        Algorithm.__init__(self, func)  
+        self.g_best = None
+        self.g_best_f = np.inf
         self.popsize = 40
+        
+    def set_params(self, parameters):
+        self.budget = parameters.budget
+
+        """Warm start routine"""
+
+    def get_params(self, parameters):
+        parameters.internal_dict['x_opt'] = self.func.best_so_far_variables
+
+        return parameters
+
 
     def run(self):
+        """ Runs the PSO algorithm.
+
+        Parameters:
+        --------------
+        None
+
+        Returns:
+        --------------
+        best_so_far_variables : array
+                The best found solution.
+
+        best_so_far_fvaluet: float
+               The fitness value for the best found solution.
+
+        """
+
+        print(f' PSO started')
 
         # establish the swarm
         swarm = []
@@ -122,18 +168,18 @@ class PSO(Algorithm):
             swarm[i].best_fitness = swarm[i].fitness   # set best_fitness to current particle's fitness
 
             # update global best if particle is best solution so far
-            if swarm[i].fitness < self.f_opt:
-                self.x_opt = swarm[i].position.copy()
-                self.f_opt = swarm[i].fitness
+            if swarm[i].fitness < self.g_best_f:
+                self.g_best = swarm[i].position.copy()
+                self.g_best_f = swarm[i].fitness
 
         # evaluation loop
-        while not self.stop:
+        while not self.stop():
             # Update inertia weight
             w = 0.9 - 0.8 * self.func.evaluations / self.budget
 
             # Iterate through particle swarm
             for k in range(0, self.popsize):
-                swarm[k].update_velocity(self.x_opt, w)    # update velocity based on global_best and inertia weight
+                swarm[k].update_velocity(self.g_best, w)    # update velocity based on global_best and inertia weight
                 swarm[k].update_position(self.func)    # update position with new velocity
                 swarm[k].fitness = self.func(swarm[k].position)    # evaluate the particle's fitness
 
@@ -143,9 +189,11 @@ class PSO(Algorithm):
                     swarm[k].best_fitness = swarm[k].fitness
 
                 # check if new particle position is best-so-far globally
-                if swarm[k].fitness < self.f_opt:
-                    self.x_opt = swarm[k].position.copy()
-                    self.f_opt = swarm[k].fitness
+                if swarm[k].fitness < self.g_best_f:
+                    self.g_best = swarm[k].position.copy()
+                    self.g_best_f = swarm[k].fitness
+        
+        print(f' PSO complete')
 
         # return best global solution including its fitness value
-        return self.x_opt, self.f_opt
+        return self.func.best_so_far_variables, self.func.best_so_far_fvalue

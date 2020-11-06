@@ -4,6 +4,8 @@
 from bfgs import BFGS
 from mlsl import MLSL
 from ea import EA
+from pso import PSO
+from cmaes import CMAES
 
 def create_dict():
     """ Manually creates dictionary.
@@ -15,8 +17,8 @@ def create_dict():
 
     """
     data = {
-      20: EA,
-      1e-8: MLSL
+      8: MLSL,
+      1e-8: BFGS
     }
 
     return data

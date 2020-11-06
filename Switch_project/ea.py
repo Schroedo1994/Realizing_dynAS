@@ -35,7 +35,19 @@ class EA(Algorithm):
         Constant for step size update in individual stepsize mutation.
 
     local_tau : float
-        Constant for step size update in individual stepsize mutation.         
+        Constant for step size update in individual stepsize mutation. 
+        
+    Methods:
+    --------------
+    
+    set_params(parameters):
+        Sets algorithm parameters for warm-start.
+        
+    get_params(parameters):
+        Transfers internal parameters to parameters dictionary.
+        
+    run():
+        Runs the EA algorithm.
 
     Parent:
     ------------
@@ -48,9 +60,24 @@ class EA(Algorithm):
         self.lamda = 100
         self.pc = 0.75
         self.pop = None
+        self.f = []
         self.sigma = None
         self.global_tau = 1.0
         self.local_tau = 1.0
+        
+    
+    def set_params(self, parameters):
+        self.budget = parameters.budget
+
+        """Warm start routine"""
+
+
+    def get_params(self, parameters):
+        parameters.internal_dict['sigma_vec'] = self.sigma
+        parameters.internal_dict['x_opt'] = self.func.best_so_far_variables
+
+        return parameters
+
 
     def initialize_population(self):
         """ Creates a random population.
@@ -108,10 +135,10 @@ class EA(Algorithm):
 
         Returns:
         --------------
-        x_opt : array
+        best_so_far_variables : array
                 The best found solution.
 
-        f_opt: float
+        best_so_far_fvaluet: float
                The fitness value for the best found solution.
 
         """
@@ -136,7 +163,6 @@ class EA(Algorithm):
 
         # Evaluation loop
         while not self.stop():
-            # Update sigma
             self.sigma = self.update_sigma()
 
             # Create new offspring generation
@@ -145,28 +171,26 @@ class EA(Algorithm):
                 xo.append(self.mutate(offspring))
                 fo.append(self.func(xo[i]))
 
-            # Selection
             # Create joint matrix of individuals and their fitness values
             m = np.hstack((np.asarray(xo), np.expand_dims(np.asarray(fo), axis=1)))
+
             # Sort based on fitness (lowest values highest ranking)
             sorted_m = m[np.argsort(m[:, self.dim])]
+
             # Copy best individuals and remove fitness values
             xpnew = sorted_m[0:self.popsize, 0:self.dim]
+
             # Set new population for next generation
             self.pop = []
             for i in range (0, len(xpnew)):
                 self.pop.append(xpnew[i])
+
             # Copy fitness values of new generation
             self.f = []
             mf = sorted_m[0:self.popsize, self.dim]
             for i in range (0, len(mf)):
                 self.f.append(mf[i])
-
-            # Check if new best individual is better than previous best
-            if self.f[0] < self.f_opt:
-                self.x_opt = self.pop[0]
-                self.f_opt = self.f[0]
         
         print(f' EA complete')
 
-        return self.x_opt, self.f_opt
+        return self.func.best_so_far_variables, self.func.best_so_far_fvalue
