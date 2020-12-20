@@ -3,6 +3,7 @@ import random as rd
 import math
 import datetime
 from shutil import make_archive
+import copy
 
 from scipy.optimize.optimize import _prepare_scalar_function
 from scipy.optimize.optimize import vecnorm
@@ -11,9 +12,6 @@ from scipy.optimize.optimize import _LineSearchError
 from scipy.optimize.optimize import OptimizeResult
 from scipy.optimize.optimize import _status_message
 from scipy.optimize._differentiable_functions import ScalarFunction, FD_METHODS
-from scipy.optimize.linesearch import (line_search_wolfe1, line_search_wolfe2,
-                         line_search_wolfe2 as line_search,
-                         LineSearchWarning)
 
 from algorithm import Algorithm
 
@@ -84,8 +82,14 @@ class BFGS(Algorithm):
         self.jac = None
         self.finite_diff_rel_step = None
         self.x0 = None
-        self.Hk = np.eye(self.dim, dtype=int)   # B0 = identity
+        self.Hk = np.eye(self.dim, dtype=int)
         self.alpha_k = 0
+        self.eval_count = []
+        self.stepsizes = []
+        self.matrix_norm = []
+        self.Hk_overtime = []
+        self.prec_overtime = []
+
 
     def set_params(self, parameters):
         self.budget = parameters.budget
@@ -96,23 +100,39 @@ class BFGS(Algorithm):
         
         if 'x_opt' in parameters.internal_dict:
             self.x0 = parameters.internal_dict['x_opt']
-        
+
         # Initialize stepsize alpha_k
-        if 'stepsize' in parameters.internal_dict:
-            self.alpha_k = parameters.internal_dict['stepsize']
+            # some code
 
         # Initialize Hk
-  
-        # if 'C' in parameters.internal_dict:
-        #     do something nice
-        #     finally set Hk to something
+        if 'C' in parameters.internal_dict:
+            self.Hk = parameters.internal_dict['C']
 
+
+        #save number of evaluations and stepsizes to create plot
+        
+        if 'evalcount' in parameters.internal_dict:
+            self.eval_count = parameters.internal_dict['evalcount']
+            
+        if 'stepsizes' in parameters.internal_dict:
+            self.stepsizes = parameters.internal_dict['stepsizes']
+        
 
     def get_params(self, parameters):
-        parameters.internal_dict['Hk'] = self.Hk
+        parameters.internal_dict['Hessian'] = self.Hk
         parameters.internal_dict['stepsize'] = self.alpha_k
         parameters.internal_dict['x_opt'] = self.func.best_so_far_variables
-
+        parameters.internal_dict['x_hist'] = self.func.x_hist
+        parameters.internal_dict['f_hist'] = self.func.f_hist
+        
+        parameters.internal_dict['evalcount'] = self.eval_count
+        parameters.internal_dict['stepsizes'] = self.stepsizes
+        parameters.internal_dict['matrix_norm'] = self.matrix_norm
+        parameters.internal_dict['a1_x_hist'] = self.x_hist.copy()
+        parameters.internal_dict['a1_f_hist'] = self.f_hist.copy()
+        parameters.internal_dict['BFGS_bestpoint'] = self.func.best_so_far_variables
+        parameters.internal_dict['evals_splitpoint'] = self.func.evaluations
+        
         return parameters
 
 
@@ -151,8 +171,12 @@ class BFGS(Algorithm):
         f = sf.fun    # function object to evaluate function
         gradient = sf.grad    # function object to evaluate gradient
 
+
         old_fval = f(self.x0)    # evaluate x0
         gfk = gradient(self.x0)   # gradient at x0
+        
+        self.x_hist.append(self.x0)
+        self.f_hist.append(old_fval)
 
         # Sets the initial step guess to dx ~ 1
         old_old_fval = old_fval + np.linalg.norm(gfk) / 2
@@ -185,12 +209,22 @@ class BFGS(Algorithm):
                 #print('break because of line search error')
                 break
 
+            # Save parameters for plot and analysis
+            self.stepsizes.append(self.alpha_k)
+            self.matrix_norm.append(np.linalg.norm(self.Hk))
+            self.Hk_overtime.append(self.Hk)
+            self.eval_count.append(self.func.evaluations)
+
             # calculate xk+1 with alpha_k and pk
             xkp1 = xk + self.alpha_k * pk
             if self.return_all:
                 allvecs.append(xkp1)
             sk = xkp1 - xk    # step sk is difference between xk+1 and xk
             xk = xkp1    # make xk+1 new xk for next iteration
+            self.x_hist.append(xk)
+            self.prec_overtime.append(self.func.best_so_far_precision)
+            self.f_hist.append(old_fval)
+
             # Calculate gradient of xk+1 if not already found by Wolfe search
             if gfkp1 is None:
                 gfkp1 = gradient(xkp1)
@@ -208,7 +242,7 @@ class BFGS(Algorithm):
                 #print('break because of gnorm')
                 break
 
-            # Calculate rhok factor for Hessian approximation matrix update
+            # Calculate rhok factor for inverse Hessian approximation matrix update
             try:
                 rhok = 1.0 / (np.dot(yk, sk))
             except ZeroDivisionError:
@@ -216,7 +250,7 @@ class BFGS(Algorithm):
             if np.isinf(rhok):  # this is patch for NumPy
                 rhok = 1000.0
 
-            # Hessian approximation matrix Hk (Bk in papers) update
+            # Inverse Hessian approximation matrix Hk (Bk in papers) update
             A1 = I - sk[:, np.newaxis] * yk[np.newaxis, :] * rhok
             A2 = I - yk[:, np.newaxis] * sk[np.newaxis, :] * rhok
             self.Hk = np.dot(A1, np.dot(self.Hk, A2)) + (rhok * sk[:, np.newaxis] *
@@ -233,6 +267,7 @@ class BFGS(Algorithm):
         if self.return_all:
             result['allvecs'] = allvecs
 
-        print(f' BFGS complete')
+        print(f'BFGS complete')
+        print(f'evals: {self.func.evaluations} x_opt: {self.func.best_so_far_variables}')
 
         return self.func.best_so_far_variables, self.func.best_so_far_fvalue
