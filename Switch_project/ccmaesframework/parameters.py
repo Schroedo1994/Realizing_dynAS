@@ -495,7 +495,7 @@ class Parameters(AnnotatedStruct):
             1. + (2. * max(0., np.sqrt((self.mueff - 1) /
                                        (self.d + 1)) - 1) + self.cs)
         )
-        self.chiN = (
+        s  = (
             self.d ** .5 * (1 - 1 / (4 * self.d) + 1 / (21 * self.d ** 2))
         )
         self.ds = 2 - (2 / self.d)

@@ -1,4 +1,5 @@
 import numpy as np
+import math
 from .optimizer import Optimizer
 from .utils import _correct_bounds, _scale_with_threshold, _tpa_mutation
 from .parameters import Parameters
@@ -31,6 +32,20 @@ class ConfigurableCMAES(Optimizer):
         self.parameters = parameters if isinstance(
             parameters, Parameters
         ) else Parameters(*args, **kwargs)
+        #self.initial_distances = None
+        #self.sigma_vec = []
+        self.eval_count = []
+        self.stepsizes = []
+        self.matrix_norm = []
+        self.C_overtime = []
+        self.x_hist = []
+        self.a2_x_hist = []
+        self.f_hist = []
+        self.prec_overtime = []
+        #self.ps_overtime = []
+        #self.pc_overtime = []
+        self.generation_counter = []
+        self.k = 0
 
     def get_mutation_generator(self) -> None:
         '''Returns a mutation generator, which performs mutation.
@@ -59,6 +74,7 @@ class ConfigurableCMAES(Optimizer):
                 zi = _scale_with_threshold(zi, self.parameters.threshold)
 
             # B is a matrix of C's eigenvectors, D is an array with C's eigenvalues
+            #print(f'B: {self.parameters.B} D: {self.parameters.D}')
             yi = np.dot(self.parameters.B, self.parameters.D * zi) # dot product of matrix B and element-wise multiplied D * zi
             xi = self.parameters.m + (self.parameters.sigma * yi) # formula xi = m + sigma * Ni(0,C) where yi  = Ni(0, C)
             if self.parameters.bound_correction:
@@ -146,6 +162,7 @@ class ConfigurableCMAES(Optimizer):
             self.parameters.pweights).reshape(-1, 1)
         )
 
+            
     def step(self) -> bool:
         '''The step method runs one iteration of the optimization process.
         The method is called within the self.run loop, as defined in the
@@ -157,13 +174,43 @@ class ConfigurableCMAES(Optimizer):
         bool
             Denoting whether to keep running this step function.
         '''
-
+        
         self.mutate()
+
+        """Validate pop initialization in the neighbourhood of x_opt"""
+        """if self.initial_distances is None:
+            print(f' search space size: {math.sqrt(100 * self.parameters.d)}')
+            self.initial_distances = []
+            for i in range(0, self.parameters.lambda_):
+                a = self.parameters.population.x[:, i]
+                self.initial_distances.append(np.linalg.norm(a - self.parameters.m.flatten()))
+                print(f' init_distance: {self.initial_distances[i]}')
+                
+        """
+
         self.select()
         self.recombine()
         self.parameters.adapt()
-        #atleast1d - turn in at least 1-dimensional array
+        
+        #Append information to create plots
+        self.stepsizes.append(self.parameters.sigma)   
+        self.matrix_norm.append(np.linalg.norm(self.parameters.C))
+        self.eval_count.append(self._fitness_func.evaluations)
+        self.C_overtime.append(self.parameters.C)
+
+
+        
+        for i in range(0, self.parameters.lambda_):
+            self.x_hist.append(self.parameters.population.x[:, i])
+            self.a2_x_hist.append(self.parameters.population.x[:, i])
+            self.f_hist.append(self.parameters.population.f[i])
+            self.generation_counter.append(self.k)
+
+        self.k += 1
+        self.prec_overtime.append(self._fitness_func.best_so_far_precision)
+
         return not any(np.atleast_1d(self.break_conditions()))
+        
 
     def sequential_break_conditions(self, i: int, f: float) -> bool:
         '''Method returning a boolean value, indicating whether there are any
