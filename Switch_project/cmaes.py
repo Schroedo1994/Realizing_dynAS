@@ -56,22 +56,22 @@ class CMAES(Algorithm):
 
         # Use BFGS's inverse Hessian matrix to initialize covariance matrix
         beta = 1 # scaling factor
-        if 'Hessian' in parameters.internal_dict:
-            self.configcmaes.parameters.C = beta * parameters.internal_dict['Hessian']
+        if 'invHessian' in parameters.internal_dict:
+            self.configcmaes.parameters.C = beta * parameters.internal_dict['invHessian']
             self.configcmaes.parameters.perform_eigendecomposition()
             
             # Plot initial covariance matrix
             #self.configcmaes.parameters.lambda_ = 10000    
 
-        # Initialize step size with a1_x_hist
-        if 'a1_x_hist' in parameters.internal_dict:
+        # Initialize step size with bfgs_x_hist
+        if 'bfgs_x_hist' in parameters.internal_dict:
             # Init sigma
-            a1_xhist = parameters.internal_dict['a1_x_hist']    # a1_x_hist only contains xk points of BFGS
+            bfgs_x_hist = parameters.internal_dict['bfgs_x_hist']    # bfgs_x_hist only contains xk points of BFGS
             number_points = 2
             cumul_dist = 0
             for i in range(1, number_points+1):
-                a = a1_xhist[len(a1_xhist)-i]
-                b = a1_xhist[len(a1_xhist)-i-1]
+                a = bfgs_x_hist[len(bfgs_x_hist)-i]
+                b = bfgs_x_hist[len(bfgs_x_hist)-i-1]
                 cumul_dist += np.linalg.norm(a-b)
             
             # average euclidean distance between last n points
@@ -79,12 +79,19 @@ class CMAES(Algorithm):
 
             self.configcmaes.parameters.sigma = predicted_sigma
         
+        if 'C' in parameters.internal_dict:
+            self.configcmaes.parameters.C = parameters.internal_dict['C']
+            print(f'C changed to {self.configcmaes.parameters.C}')
+            self.configcmaes.parameters.sigma = parameters.internal_dict['stepsize']
+            self.configcmaes.parameters.perform_eigendecomposition()
+            #self.configcmaes.parameters.lambda_ = 10000
+        
         """
         # Gaussian regression model to predict C and sigma
-        if ('a1_x_hist' in parameters.internal_dict and 'a1_f_hist' in parameters.internal_dict):
+        if ('mlsl_x_hist' in parameters.internal_dict and 'mlsl_f_hist' in parameters.internal_dict):
 
-            X = np.asarray(parameters.internal_dict['a1_x_hist'])
-            y = np.asarray(parameters.internal_dict['a1_f_hist'])
+            X = np.asarray(parameters.internal_dict['mlsl_x_hist'])
+            y = np.asarray(parameters.internal_dict['mlsl_f_hist'])
             sigma0, inv_H = cma_es_warm_starting(X, y)
             self.configcmaes.parameters.C = inv_H 
             self.configcmaes.parameters.perform_eigendecomposition()
@@ -92,8 +99,8 @@ class CMAES(Algorithm):
             
             # Plot initial covariance matrix
             #self.configcmaes.parameters.lambda_ = 10000
-        
         """
+        
         """
         # Hand-over saved C, m and sigma to plot covariance matrix and distribution
         if 'C' in parameters.internal_dict:
@@ -104,25 +111,6 @@ class CMAES(Algorithm):
             
             # Plot initial covariance matrix
             #self.configcmaes.parameters.lambda_ = 10000
-
-        """
-        """
-        # Init ps, pc and dm
-        if 'a1_x_hist' in parameters.internal_dict:
-
-            old_m = a1_xhist[len(a1_xhist)-2]
-            self.configcmaes.parameters.dm = (self.configcmaes.parameters.m - old_m) / self.configcmaes.parameters.sigma
-
-            cparams =  self.configcmaes.parameters
-            self.configcmaes.parameters.ps = (np.sqrt(cparams.cs * (2 - cparams.cs)-cparams.mueff) * 
-                                             cparams.invC @ cparams.dm) * cparams.ps_factor
-
-            hs = (np.linalg.norm(self.configcmaes.parameters.ps) /
-                np.sqrt(1 - np.power(1 - cparams.cs, 2 *
-                                 (self.func.evaluations / cparams.lambda_)))
-                        ) < (1.4 + (2 / (self.dim + 1))) * cparams.chiN
-
-            self.configcmaes.parameters.pc = (hs * np.sqrt(cparams.cc * (2 - cparams.cc) * cparams.mueff )) * cparams.dm
 
         """
 
@@ -151,6 +139,7 @@ class CMAES(Algorithm):
         parameters.internal_dict['x_opt'] = self.func.best_so_far_variables
         parameters.internal_dict['stepsize'] = self.configcmaes.parameters.sigma
         parameters.internal_dict['C'] = self.configcmaes.parameters.C
+        parameters.internal_dict['invC'] = self.configcmaes.parameters.invC
         parameters.internal_dict['m'] = self.configcmaes.parameters.m
 
         # save number of evaluations and stepsizes to create plot
@@ -160,6 +149,8 @@ class CMAES(Algorithm):
         parameters.internal_dict['cmaes_x_hist'] = self.configcmaes.x_hist
         parameters.internal_dict['cmaes_f_hist'] = self.configcmaes.f_hist
         parameters.internal_dict['cmaes_x_opt'] = self.func.best_so_far_variables
+        parameters.internal_dict['cmaes_gen_counter'] = self.configcmaes.generation_counter
+        parameters.internal_dict['evals_splitpoint'] = self.func.evaluations
 
         """
         # Save parameters object
@@ -171,12 +162,14 @@ class CMAES(Algorithm):
 
     def run(self):
         print(f'CMA-ES started')
+        #print(f'sigma: {self.configcmaes.parameters.sigma} C: {self.configcmaes.parameters.C}')
 
         self.configcmaes.parameters.budget = self.budget
         self.configcmaes.break_conditions = self.stop
         self.configcmaes.run()
 
         print(f'CMA-ES complete')
-        print(f'x_opt: {self.func.best_so_far_variables}')
+        print(f'evals: {self.func.evaluations} prec: {self.func.best_so_far_precision}')
+        #print(f'C: {self.configcmaes.parameters.C}')
 
         return self.func.best_so_far_variables, self.func.best_so_far_fvalue

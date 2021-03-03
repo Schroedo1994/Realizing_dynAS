@@ -45,7 +45,7 @@ class Particle:
 
         # initialize particle with uniform random position and velocities
         for i in range(0, self.dim):
-            self.velocity[i] = generator.uniform(low= -5, high=5)
+            self.velocity[i] = generator.uniform(low= -1, high=1)
             self.position[i] = generator.uniform(low= -5, high=5)
 
     def update_velocity(self, pos_best_g, w):
@@ -71,6 +71,7 @@ class Particle:
 
         """ update velocity with previous velocity and component-wise multiplication of u-vectors
         with differences between current solution, previous best and global best"""
+        # Star (*) denotes element-wise multiplication operator, that's intended
         for i in range(0, self.dim):
             self.velocity[i] = w * self.velocity[i] + u1[i] * (self.pos_best[i]
                                                     - self.position[i]) + u2[i] * (pos_best_g[i] - self.position[i])
@@ -135,6 +136,8 @@ class PSO(Algorithm):
         self.swarm = None
         self.vel_overtime = []
         self.eval_count = []
+        self.generation_counter = []
+        self.gen = 0
         
     def set_params(self, parameters):
         self.budget = parameters.budget
@@ -167,6 +170,7 @@ class PSO(Algorithm):
                 # save information for plots
                 vel_vector.append(np.linalg.norm(self.swarm[i].velocity))
                 self.x_hist.append(self.swarm[i].position.copy())
+                self.generation_counter.append(self.gen)
                 self.f_hist.append(self.swarm[i].fitness)
                 
                 # update global best if particle is best solution so far
@@ -215,6 +219,7 @@ class PSO(Algorithm):
         parameters.internal_dict['pso_f_hist'] = self.f_hist.copy()
         parameters.internal_dict['vel_overtime'] = self.vel_overtime
         parameters.internal_dict['evalcount'] = self.eval_count
+        parameters.internal_dict['pso_gen_counter'] = self.generation_counter
     
         return parameters
 
@@ -244,6 +249,7 @@ class PSO(Algorithm):
             for i in range(0, self.popsize):
                 self.swarm.append(Particle(self.dim))   # append objects of class Particle
                 self.x_hist.append(self.swarm[i].position.copy())
+                self.generation_counter.append(self.gen)
                 self.swarm[i].fitness = self.func(self.swarm[i].position) # evaluate fitness for each particle
 
                 self.f_hist.append(self.swarm[i].fitness)   
@@ -259,6 +265,7 @@ class PSO(Algorithm):
         while not self.stop():
             # Update inertia weight
             w = 0.9 - 0.8 * self.func.evaluations / self.budget
+            self.gen += 1
 
             # Iterate through particle swarm
             vel_vector = []
@@ -269,6 +276,7 @@ class PSO(Algorithm):
                 self.swarm[k].fitness = self.func(self.swarm[k].position)    # evaluate the particle's fitness    
                 
                 self.x_hist.append(self.swarm[k].position.copy())
+                self.generation_counter.append(self.gen)
                 self.f_hist.append(self.swarm[k].fitness)
 
                 # check if new particle position is best-so-far for this particle

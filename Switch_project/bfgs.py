@@ -89,6 +89,7 @@ class BFGS(Algorithm):
         self.matrix_norm = []
         self.Hk_overtime = []
         self.prec_overtime = []
+        self.generation_counter = []
 
 
     def set_params(self, parameters):
@@ -101,13 +102,9 @@ class BFGS(Algorithm):
         if 'x_opt' in parameters.internal_dict:
             self.x0 = parameters.internal_dict['x_opt']
 
-        # Initialize stepsize alpha_k
-            # some code
-
-        # Initialize Hk
+        """# Initialize Hk
         if 'C' in parameters.internal_dict:
-            self.Hk = parameters.internal_dict['C']
-
+            self.Hk = parameters.internal_dict['C']"""
 
         #save number of evaluations and stepsizes to create plot
         
@@ -117,9 +114,12 @@ class BFGS(Algorithm):
         if 'stepsizes' in parameters.internal_dict:
             self.stepsizes = parameters.internal_dict['stepsizes']
         
+        if 'matrix_norm' in parameters.internal_dict:
+            self.matrix_norm = parameters.internal_dict['matrix_norm']
+
 
     def get_params(self, parameters):
-        parameters.internal_dict['Hessian'] = self.Hk
+        parameters.internal_dict['invHessian'] = self.Hk
         parameters.internal_dict['stepsize'] = self.alpha_k
         parameters.internal_dict['x_opt'] = self.func.best_so_far_variables
         parameters.internal_dict['x_hist'] = self.func.x_hist
@@ -128,10 +128,11 @@ class BFGS(Algorithm):
         parameters.internal_dict['evalcount'] = self.eval_count
         parameters.internal_dict['stepsizes'] = self.stepsizes
         parameters.internal_dict['matrix_norm'] = self.matrix_norm
-        parameters.internal_dict['a1_x_hist'] = self.x_hist.copy()
-        parameters.internal_dict['a1_f_hist'] = self.f_hist.copy()
-        parameters.internal_dict['BFGS_bestpoint'] = self.func.best_so_far_variables
-        parameters.internal_dict['evals_splitpoint'] = self.func.evaluations
+        parameters.internal_dict['bfgs_x_hist'] = self.x_hist.copy()
+        parameters.internal_dict['bfgs_f_hist'] = self.f_hist.copy()
+        parameters.internal_dict['bfgs_x_opt'] = self.func.best_so_far_variables
+        parameters.internal_dict['bfgs_gen_counter'] = self.generation_counter
+        #parameters.internal_dict['evals_splitpoint'] = self.func.evaluations
         
         return parameters
 
@@ -154,6 +155,7 @@ class BFGS(Algorithm):
         """
 
         print(f' BFGS started')
+        print(f'init_x0: {self.x0}')
 
         # Initialization 
         I = np.eye(self.dim, dtype=int)    # identity matrix
@@ -177,6 +179,7 @@ class BFGS(Algorithm):
         
         self.x_hist.append(self.x0)
         self.f_hist.append(old_fval)
+        self.generation_counter.append(k)
 
         # Sets the initial step guess to dx ~ 1
         old_old_fval = old_fval + np.linalg.norm(gfk) / 2
@@ -207,6 +210,7 @@ class BFGS(Algorithm):
                 
             except _LineSearchError:
                 #print('break because of line search error')
+                            # Save parameters for plot and analysis
                 break
 
             # Save parameters for plot and analysis
@@ -231,6 +235,7 @@ class BFGS(Algorithm):
             yk = gfkp1 - gfk    # gradient difference
             gfk = gfkp1    # copy gradient to gfk for new iteration
             k += 1
+            self.generation_counter.append(k)
 
             if not np.isfinite(old_fval):
                 #print('break because of np.isfinite')
