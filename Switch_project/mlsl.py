@@ -2,13 +2,10 @@
 import numpy as np
 import random as rd
 import math
-import shutil
-import datetime
 from scipy.special import gamma
 from scipy.optimize import minimize, Bounds
 
 from algorithm import Algorithm
-
 
 # setting up numpy random
 np.random.seed()
@@ -88,7 +85,7 @@ class MLSL(Algorithm):
     def set_params(self, parameters):
         self.budget = parameters.budget
         
-        """Warm start routine"""
+        """Warm start routine (not yet available)"""
 
     def get_params(self, parameters):
         parameters.internal_dict['rk'] = self.rk
@@ -147,15 +144,11 @@ class MLSL(Algorithm):
         # Set parameters depending on function characteristics
         local_budget = 0.1 * (self.budget - self.func.evaluations)        
         bounds = Bounds(self.func.lowerbound, self.func.upperbound)
-        self.popsize = 50 * self.dim    # 50 points according to original BBOB submission
+        self.popsize = 50 * self.dim    # 50d points according to original BBOB submission
 
-        # Initialize reduced sample and (re)set iteration counter to 1
-
+        # (re)set iteration counter to 1
         self.k = 1
-
-        current_precision = np.inf
-        old_precision = np.inf
-        
+    
         # Start iteration
         while not self.stop():
             
@@ -170,12 +163,7 @@ class MLSL(Algorithm):
                 newpoint_fitness = self.func(new_point)
                 self.f.append(newpoint_fitness)
                 self.f_hist.append(newpoint_fitness)
-            
-            #print(f'points added, popsize {len(self.pop)} evals: {self.func.evaluations} prec: {self.func.best_so_far_precision}')
-            
-            if self.stop():
-                break
-            
+
             # Extract reduced sample xr
             self.xr = np.zeros((math.ceil(self.gamma * self.k * self.popsize), self.dim))
             m = np.hstack((np.asarray(self.pop), np.expand_dims(np.asarray(self.f), axis=1)))
@@ -183,12 +171,11 @@ class MLSL(Algorithm):
             self.xr = sorted_m[0:len(self.xr), 0:self.dim]
             self.fr = sorted_m[0:len(self.xr), self.dim]
  
-            # Update rk
+            # Update rk and increase generation counter
             self.rk = self.calc_rk()
-            #print(f'rk (updated): {self.rk}')
-
-            # Check critical distance and fitness differences in xr
             self.gen += 1
+            
+            # Check critical distance and fitness differences in xr
             for i in range(0, len(self.xr)):
                 cond = False
                 for j in range(0, len(self.xr)):
@@ -202,24 +189,21 @@ class MLSL(Algorithm):
                 # If there is no point with better fitness in critical distance, start local search
                 if not cond:
                     solution = minimize(self.func, self.xr[i], method='Powell', bounds=bounds,
-                                        options={'ftol': 1e-8, 'maxfev': local_budget})
+                                        options={'ftol': 1e-8, 'maxfev': local_budget})                   
                     self.x_star.append(solution.x)
                     self.x_hist.append(solution.x)
                     self.generation_counter.append(self.gen)
                     self.f_star.append(solution.fun)
                     self.f_hist.append(solution.fun)
-                    #print(f'LS performed, evals: {self.func.evaluations} x: {self.func.best_so_far_variables} prec: {self.func.best_so_far_precision}')
 
                     local_budget = local_budget - solution.nfev
                     if local_budget < 0:
                         local_budget = 0
-                    
-                if self.stop():
-                    break
+
+            # Increase iteration and generation counter
             self.gen += 1
             self.k = self.k+1
 
         print(f'MLSL complete')
-        print(f'evals: {self.func.evaluations} prec: {self.func.best_so_far_precision}')
 
         return self.func.best_so_far_variables, self.func.best_so_far_fvalue

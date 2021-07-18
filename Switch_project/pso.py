@@ -5,7 +5,7 @@ import copy
 from algorithm import Algorithm
 
 # setting up numpy random
-np.random.seed()
+
 generator = np.random.default_rng()
 
 class Particle:
@@ -37,16 +37,11 @@ class Particle:
 
     def __init__(self, dim):
         self.dim = dim
-        self.position = np.zeros(self.dim)
-        self.velocity = np.zeros(self.dim)
+        self.position = np.random.uniform(low= -5, high=5, size=self.dim)
+        self.velocity = np.random.uniform(low= -1, high=1, size=self.dim)
         self.fitness = np.inf
         self.pos_best = np.zeros(self.dim)
         self.best_fitness = np.inf
-
-        # initialize particle with uniform random position and velocities
-        for i in range(0, self.dim):
-            self.velocity[i] = generator.uniform(low= -1, high=1)
-            self.position[i] = generator.uniform(low= -5, high=5)
 
     def update_velocity(self, pos_best_g, w):
         """ Update the particle's velocity.
@@ -120,7 +115,7 @@ class PSO(Algorithm):
         Transfers internal parameters to parameters dictionary.
         
     run():
-        Runs the EA algorithm.
+        Runs the PSO algorithm.
 
     Parent:
     ------------
@@ -150,18 +145,17 @@ class PSO(Algorithm):
         if 'x_opt' in parameters.internal_dict:
             x_opt = parameters.internal_dict['x_opt']
             self.swarm = []
-            eta = 0.1
-            #vmax_slow = 1
-            #vmin_slow = -vmax_slow
+            eta = 0.1    # population distribution radius
             vel_vector = []
+
             for i in range(0, self.popsize):
-                self.swarm.append(Particle(self.dim))   # append objects of class Particle
+                # append objects of class Particle
+                self.swarm.append(Particle(self.dim))   
                 
-                # update particle position and velocity
+                # update particle positions based on x_opt and distribution radius
                 for j in range(0, self.dim):
                     self.swarm[i].position[j] = x_opt[j] + generator.uniform(low = -eta, high = eta)
-                    #self.swarm[i].velocity[j] = generator.uniform(low = vmin_slow, high = vmax_slow)
-                
+
                 # update fitness and best positions / fitness
                 self.swarm[i].fitness = self.func(self.swarm[i].position)   # evaluate fitness for each particle
                 self.swarm[i].pos_best = self.swarm[i].position.copy()   # set personal_best to current position
@@ -177,17 +171,19 @@ class PSO(Algorithm):
                 if self.swarm[i].fitness < self.g_best_f:
                     self.g_best = self.swarm[i].position.copy()
                     self.g_best_f = self.swarm[i].fitness
-                
+            
             self.vel_overtime.append(np.asarray(vel_vector))
             self.eval_count.append(self.func.evaluations)
             parameters.internal_dict['init_swarm'] = self.x_hist.copy()
         
-        # Initialize swarm with best points found by A1
+        # Strategy 2: Initialize swarm with best points found by A1 (MLSL)
         """if 'mlsl_x_hist' in parameters.internal_dict:
 
             x_hist = parameters.internal_dict['mlsl_x_hist']
             f_hist = parameters.internal_dict['mlsl_f_hist']
+            vel_vector = []
 
+            # Identify best points
             best_points = np.zeros((self.popsize, self.func.number_of_variables))
             m = np.hstack((np.asarray(x_hist), np.expand_dims(np.asarray(f_hist), axis=1)))
             sorted_m = m[np.argsort(m[:, self.func.number_of_variables])]
@@ -195,16 +191,23 @@ class PSO(Algorithm):
             
             self.swarm = []
             for i in range(0, self.popsize):
-                self.swarm.append(Particle(self.dim))   # append objects of class Particle
+                # append objects of class Particle
+                self.swarm.append(Particle(self.dim))
+                
                 # update particle position and velocity
-
                 self.swarm[i].position = best_points[i]
-                self.x_hist.append(self.swarm[i].position.copy())     
+                
+                # update fitness and best positions / fitness                
                 self.swarm[i].fitness = self.func(self.swarm[i].position)   # evaluate fitness for each particle
-                self.f_hist.append(self.swarm[i].fitness)
                 self.swarm[i].pos_best = self.swarm[i].position.copy()   # set personal_best to current position
                 self.swarm[i].best_fitness = self.swarm[i].fitness   # set best_fitness to current particle's fitness
                 
+                # save information for plots
+                vel_vector.append(np.linalg.norm(self.swarm[i].velocity))
+                self.x_hist.append(self.swarm[i].position.copy())
+                self.generation_counter.append(self.gen)
+                self.f_hist.append(self.swarm[i].fitness)
+
                 # update global best if particle is best solution so far
                 if self.swarm[i].fitness < self.g_best_f:
                     self.g_best = self.swarm[i].position.copy()
@@ -241,20 +244,24 @@ class PSO(Algorithm):
 
         """
 
-        print(f'PSO started')
+        #print(f'PSO started')
 
         # establish the swarm
         if self.swarm is None:   # only establish swarm if not initialized by set_params
             self.swarm = []
             for i in range(0, self.popsize):
-                self.swarm.append(Particle(self.dim))   # append objects of class Particle
-                self.x_hist.append(self.swarm[i].position.copy())
-                self.generation_counter.append(self.gen)
+                # append objects of class Particle
+                self.swarm.append(Particle(self.dim))
+                
+                # update fitness and best positions / fitness
                 self.swarm[i].fitness = self.func(self.swarm[i].position) # evaluate fitness for each particle
-
-                self.f_hist.append(self.swarm[i].fitness)   
                 self.swarm[i].pos_best = self.swarm[i].position.copy()   # set personal_best to current position
                 self.swarm[i].best_fitness = self.swarm[i].fitness   # set best_fitness to current particle's fitness
+                
+                # save information for plots
+                self.x_hist.append(self.swarm[i].position.copy())
+                self.generation_counter.append(self.gen)
+                self.f_hist.append(self.swarm[i].fitness)
 
                 # update global best if particle is best solution so far
                 if self.swarm[i].fitness < self.g_best_f:
@@ -292,8 +299,7 @@ class PSO(Algorithm):
             self.vel_overtime.append(np.asarray(vel_vector))
             self.eval_count.append(self.func.evaluations)
         
-        print(f'PSO complete')
-        print(f'prec: {self.func.best_so_far_precision} evals: {self.func.evaluations}')
+        #print(f'PSO complete')
 
         # return best global solution including its fitness value
         return self.func.best_so_far_variables, self.func.best_so_far_fvalue

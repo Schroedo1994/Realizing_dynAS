@@ -1,8 +1,8 @@
+### code imported from Scipy SOUCE, VERSION NUMBER ###
+
 import numpy as np
 import random as rd
 import math
-import datetime
-from shutil import make_archive
 import copy
 
 from scipy.optimize.optimize import _prepare_scalar_function
@@ -102,8 +102,8 @@ class BFGS(Algorithm):
         if 'x_opt' in parameters.internal_dict:
             self.x0 = parameters.internal_dict['x_opt']
 
-        """# Initialize Hk
-        if 'C' in parameters.internal_dict:
+        # Initialize Hk with saved Covariance matrix
+        """if 'C' in parameters.internal_dict:
             self.Hk = parameters.internal_dict['C']"""
 
         #save number of evaluations and stepsizes to create plot
@@ -117,7 +117,6 @@ class BFGS(Algorithm):
         if 'matrix_norm' in parameters.internal_dict:
             self.matrix_norm = parameters.internal_dict['matrix_norm']
 
-
     def get_params(self, parameters):
         parameters.internal_dict['invHessian'] = self.Hk
         parameters.internal_dict['stepsize'] = self.alpha_k
@@ -127,12 +126,12 @@ class BFGS(Algorithm):
         
         parameters.internal_dict['evalcount'] = self.eval_count
         parameters.internal_dict['stepsizes'] = self.stepsizes
+        parameters.internal_dict['evals_splitpoint'] = self.func.evaluations
         parameters.internal_dict['matrix_norm'] = self.matrix_norm
         parameters.internal_dict['bfgs_x_hist'] = self.x_hist.copy()
         parameters.internal_dict['bfgs_f_hist'] = self.f_hist.copy()
         parameters.internal_dict['bfgs_x_opt'] = self.func.best_so_far_variables
         parameters.internal_dict['bfgs_gen_counter'] = self.generation_counter
-        #parameters.internal_dict['evals_splitpoint'] = self.func.evaluations
         
         return parameters
 
@@ -155,11 +154,10 @@ class BFGS(Algorithm):
         """
 
         print(f' BFGS started')
-        print(f'init_x0: {self.x0}')
-
+        
         # Initialization 
         I = np.eye(self.dim, dtype=int)    # identity matrix
-        k = 0
+        k = 0     # iteration counter
 
         # Initialize first point x0 at random
         if self.x0 is None:
@@ -177,6 +175,7 @@ class BFGS(Algorithm):
         old_fval = f(self.x0)    # evaluate x0
         gfk = gradient(self.x0)   # gradient at x0
         
+        # save information for plots
         self.x_hist.append(self.x0)
         self.f_hist.append(old_fval)
         self.generation_counter.append(k)
@@ -195,10 +194,12 @@ class BFGS(Algorithm):
         # Algorithm loop
         while not self.stop():
             pk = -np.dot(self.Hk, gfk)    # derive direction pk from HK and gradient at x0 (gfk)
+            
             """Derive alpha_k with Wolfe conditions.
             
             alpha_k : step size
-            fc : count of function evaluations, gc: count of gradient evaluations
+            fc : count of function evaluations
+            gc: count of gradient evaluations
             old_fval : function value of new point xkp1 (xk + ak * pk)
             old_old_fval: function value of start point xk
             gfkp1 : gradient at new point xkp1
@@ -273,6 +274,4 @@ class BFGS(Algorithm):
             result['allvecs'] = allvecs
 
         print(f'BFGS complete')
-        print(f'evals: {self.func.evaluations} x_opt: {self.func.best_so_far_variables}')
-
         return self.func.best_so_far_variables, self.func.best_so_far_fvalue

@@ -19,7 +19,29 @@ class Algorithm:
 
     popsize : int
         The number of individuals in the population.
-
+        
+    x_hist: array-type
+        The trajectory of sampled points
+    
+    f_hist: array-type
+        The corresponding fitness values for points in x_hist
+        
+    Methods:
+    --------------
+    
+    set_params(parameters):
+        Set algorithm parameters prior to the optimization.
+    
+    get_params():
+        Get internal parameters after algorithm run
+    
+    set_stopping_criteria(stopping_criteria):
+        Pass on stopping criteria to stop function
+    
+    run():
+        Start the optimization run
+    
+        
     """
 
     def __init__(self, func):
@@ -27,6 +49,8 @@ class Algorithm:
         self.func = func
         self.budget = 0
         self.popsize = 1
+        self.x_hist = []
+        self.f_hist = []
 
     def stop(self):
         return False
