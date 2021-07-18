@@ -7,13 +7,28 @@ from scipy.optimize import Bounds
 from scipy._lib._util import check_random_state
 
 class DE(Algorithm):
-    """DE algorithm
+    """Wrapper class for different evolution algorithm
+    
+    Parameters:
+    -----------------
+    
+    Methods:
+    ------------------
+    set_params(parameters):
+        Sets algorithm parameters for warmstarting.
+        
+    get_params(parameters):
+        Transfers internal parameters to parameters dictionary.
+        
+    run():
+        Runs the DE algorithm.
+    
     """
     __doc__ += Algorithm.__doc__
     
     def __init__(self, func):
         Algorithm.__init__(self, func)
-        bounds = Bounds(self.func.lowerbound, self.func.upperbound)
+        bounds = Bounds(self.func.lowerbound, self.func.upperbound)     # bound according to BBOb definition
         self.de_wrapper = scipy_differentialevolution.DifferentialEvolutionSolver(self.func, bounds = bounds)
         self.random_number_generator = check_random_state(seed=None)
 
@@ -22,11 +37,10 @@ class DE(Algorithm):
         
         # Warmstarting
         # Warm-start population around x_opt
-  
         if 'x_opt' in parameters.internal_dict:
             x_opt = parameters.internal_dict['x_opt']
-            eta = 0.1
-            scale_arg = 10   # important for scaling variables to interval between 0 and 1
+            eta = 0.1    # population distribution radius
+            scale_arg = 10   # required for scaling variables to interval between 0 and 1
             rng = self.random_number_generator
             
             for i in range(0, self.de_wrapper.num_population_members):
@@ -36,10 +50,7 @@ class DE(Algorithm):
             # reset population energies
             self.de_wrapper.population_energies = np.full(self.de_wrapper.num_population_members,
                                            np.inf)
-            
-            #print(f'init pop: {self.de_wrapper.population}')
 
-        
     def get_params(self, parameters):
         
         parameters.internal_dict['x_opt'] = self.func.best_so_far_variables
@@ -56,11 +67,8 @@ class DE(Algorithm):
         self.de_wrapper.maxfun = self.budget
         self.de_wrapper.stop = self.stop
         self.de_wrapper.solve()
-        
 
         print(f'DE complete')
-        print(f'evals: {self.func.evaluations} prec: {self.func.best_so_far_precision}')
-
         return self.func.best_so_far_variables, self.func.best_so_far_fvalue
 
 
